@@ -1,12 +1,13 @@
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-
 #include <algorithm>
 #include <cmath>
 #include <queue>
 #include <vector>
 #include <functional>
+#include <array>
+
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 namespace py = pybind11;
 using namespace std;
@@ -37,13 +38,13 @@ struct MeshData {
         pos_idx_buf = pos_idx.request();
         uv_idx_buf = uv_idx.request();
 
-        texture_height = texture_buf.shape[0];
-        texture_width = texture_buf.shape[1];
-        texture_channel = texture_buf.shape[2];
+        texture_height = static_cast<int>(texture_buf.shape[0]);
+        texture_width = static_cast<int>(texture_buf.shape[1]);
+        texture_channel = static_cast<int>(texture_buf.shape[2]);
         texture_ptr = static_cast<float*>(texture_buf.ptr);
         mask_ptr = static_cast<uint8_t*>(mask_buf.ptr);
 
-        vtx_num = vtx_pos_buf.shape[0];
+        vtx_num = static_cast<int>(vtx_pos_buf.shape[0]);
         vtx_pos_ptr = static_cast<float*>(vtx_pos_buf.ptr);
         vtx_uv_ptr = static_cast<float*>(vtx_uv_buf.ptr);
         pos_idx_ptr = static_cast<int*>(pos_idx_buf.ptr);
@@ -53,24 +54,23 @@ struct MeshData {
 
 // 公共函数：计算UV坐标
 pair<int, int> calculateUVCoordinates(int vtx_uv_idx, const MeshData& data) {
-    int uv_v = round(data.vtx_uv_ptr[vtx_uv_idx * 2] * (data.texture_width - 1));
-    int uv_u = round((1.0 - data.vtx_uv_ptr[vtx_uv_idx * 2 + 1]) * (data.texture_height - 1));
+    int uv_v = static_cast<int>(std::round(data.vtx_uv_ptr[vtx_uv_idx * 2] * (data.texture_width - 1)));
+    int uv_u = static_cast<int>(std::round((1.0 - data.vtx_uv_ptr[vtx_uv_idx * 2 + 1]) * (data.texture_height - 1)));
     return make_pair(uv_u, uv_v);
 }
 
 // 公共函数：计算距离权重
-float calculateDistanceWeight(const array<float, 3>& vtx_0, const array<float, 3>& vtx1) {
-    float dist_weight = 1.0f / max(
-        sqrt(
-            pow(vtx_0[0] - vtx1[0], 2) + 
-            pow(vtx_0[1] - vtx1[1], 2) + 
-            pow(vtx_0[2] - vtx1[2], 2)
-        ), 1E-4);
+float calculateDistanceWeight(const std::array<float, 3>& vtx_0, const std::array<float, 3>& vtx1) {
+    float dx = vtx_0[0] - vtx1[0];
+    float dy = vtx_0[1] - vtx1[1];
+    float dz = vtx_0[2] - vtx1[2];
+    float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+    float dist_weight = 1.0f / std::max(dist, 1e-4f);
     return dist_weight * dist_weight;
 }
 
 // 公共函数：获取顶点位置
-array<float, 3> getVertexPosition(int vtx_idx, const MeshData& data) {
+std::array<float, 3> getVertexPosition(int vtx_idx, const MeshData& data) {
     return {data.vtx_pos_ptr[vtx_idx * 3], 
             data.vtx_pos_ptr[vtx_idx * 3 + 1], 
             data.vtx_pos_ptr[vtx_idx * 3 + 2]};
@@ -134,11 +134,11 @@ void performSmoothingAlgorithm(const MeshData& data, const vector<vector<int>>& 
             vector<float> sum_color(data.texture_channel, 0.0f);
             float total_weight = 0.0f;
 
-            array<float, 3> vtx_0 = getVertexPosition(vtx_idx, data);
+            std::array<float, 3> vtx_0 = getVertexPosition(vtx_idx, data);
             
             for(int connected_idx : G[vtx_idx]) {
                 if(is_colored_func(vtx_mask[connected_idx])) {
-                    array<float, 3> vtx1 = getVertexPosition(connected_idx, data);
+                    std::array<float, 3> vtx1 = getVertexPosition(connected_idx, data);
                     float dist_weight = calculateDistanceWeight(vtx_0, vtx1);
                     
                     for(int c = 0; c < data.texture_channel; ++c) {
@@ -177,12 +177,12 @@ void performForwardPropagation(const MeshData& data, const vector<vector<int>>& 
         while(!active_vtxs.empty()) {
             int vtx_idx = active_vtxs.front();
             active_vtxs.pop();
-            array<float, 3> vtx_0 = getVertexPosition(vtx_idx, data);
+            std::array<float, 3> vtx_0 = getVertexPosition(vtx_idx, data);
             
             for(int connected_idx : G[vtx_idx]) {
                 if(vtx_mask[connected_idx] > 0) continue;
                 
-                array<float, 3> vtx1 = getVertexPosition(connected_idx, data);
+                std::array<float, 3> vtx1 = getVertexPosition(connected_idx, data);
                 float dist_weight = calculateDistanceWeight(vtx_0, vtx1);
                 
                 for(int c = 0; c < data.texture_channel; ++c) {
@@ -247,8 +247,8 @@ pair<py::array_t<float>, py::array_t<uint8_t>> createOutputArrays(
     }
 
     // Reshape the new arrays to match the original texture and mask shapes
-    new_texture.resize({data.texture_height, data.texture_width, 3});
-    new_mask.resize({data.texture_height, data.texture_width});
+    new_texture.resize(std::vector<ssize_t>{data.texture_height, data.texture_width, 3});
+    new_mask.resize(std::vector<ssize_t>{data.texture_height, data.texture_width});
 
     return make_pair(new_texture, new_mask);
 }
@@ -268,7 +268,7 @@ pair<py::array_t<float>, py::array_t<uint8_t>> createVertexColorOutput(
     uint8_t* py_vtx_mask_ptr = static_cast<uint8_t*>(py_vtx_mask_buf.ptr);
 
     for(int i = 0; i < data.vtx_num; ++i) {
-        py_vtx_mask_ptr[i] = vtx_mask[i];
+        py_vtx_mask_ptr[i] = static_cast<uint8_t>(vtx_mask[i]);
         for(int c = 0; c < data.texture_channel; ++c) {
             py_vtx_color_ptr[i * data.texture_channel + c] = vtx_color[i][c];
         }
@@ -342,7 +342,7 @@ pair<py::array_t<float>, py::array_t<uint8_t>> meshVerticeInpaint(
     } else if(method == "forward") {
         return meshVerticeInpaint_forward(texture, mask, vtx_pos, vtx_uv, pos_idx, uv_idx);
     } else {
-        throw invalid_argument("Invalid method. Use 'smooth' or 'forward'.");
+        throw std::invalid_argument("Invalid method. Use 'smooth' or 'forward'.");
     }
 }
 
@@ -380,7 +380,7 @@ pair<py::array_t<float>, py::array_t<uint8_t>> meshVerticeColor(
     if(method == "smooth") {
         return meshVerticeColor_smooth(texture, mask, vtx_pos, vtx_uv, pos_idx, uv_idx);
     } else {
-        throw invalid_argument("Invalid method. Use 'smooth' or 'forward'.");
+        throw std::invalid_argument("Invalid method. Use 'smooth' or 'forward'.");
     }
 }
 
