@@ -122,8 +122,8 @@ template<typename MaskType>
 void performSmoothingAlgorithm(const MeshData& data, const vector<vector<int>>& G,
                               vector<MaskType>& vtx_mask, vector<vector<float>>& vtx_color, 
                               const vector<int>& uncolored_vtxs,
-                              function<bool(MaskType)> is_colored_func,
-                              function<void(MaskType&)> set_colored_func) {
+                              std::function<bool(MaskType)> is_colored_func,
+                              std::function<void(MaskType&)> set_colored_func) {
     int smooth_count = 2;
     int last_uncolored_vtx_count = 0;
     
