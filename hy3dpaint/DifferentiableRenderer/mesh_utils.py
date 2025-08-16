@@ -14,7 +14,7 @@
 
 import os
 import cv2
-import bpy
+# import bpy
 import math
 import numpy as np
 from io import StringIO
