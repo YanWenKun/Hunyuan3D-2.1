@@ -18,6 +18,7 @@ import sys
 sys.path.insert(0, './hy3dshape')
 sys.path.insert(0, './hy3dpaint')
 
+from mmgp import offload, profile_type
 
 try:
     from torchvision_fix import apply_fix
@@ -797,12 +798,23 @@ if __name__ == '__main__':
             #     texgen_worker.enable_model_cpu_offload()
 
             from hy3dpaint.textureGenPipeline import Hunyuan3DPaintPipeline, Hunyuan3DPaintConfig
-            conf = Hunyuan3DPaintConfig(max_num_view=8, resolution=768)
+            conf = Hunyuan3DPaintConfig(max_num_view=6, resolution=512)
+            # keep heavy diffusion part on CPU so mmgp can manage VRAM
+            conf.device = "cpu"
             conf.realesrgan_ckpt_path = "hy3dpaint/ckpt/RealESRGAN_x4plus.pth"
             conf.multiview_cfg_path = "hy3dpaint/cfgs/hunyuan-paint-pbr.yaml"
-            conf.custom_pipeline = "hy3dpaint/hunyuanpaintpbr"
+            conf.custom_pipeline = "hy3dpaint/hunyuanpaintpbr/pipeline.py"
             tex_pipeline = Hunyuan3DPaintPipeline(conf)
         
+            # Apply MMGP off-loading & 8-bit quantisation to the heavy
+            # multiview diffusion pipeline inside the texture generator.
+            try:
+                core_pipe = tex_pipeline.models["multiview_model"].pipeline
+                offload.profile(core_pipe, profile_type.LowRAM_LowVRAM)
+                print("[mmgp] LowRAM_LowVRAM profile enabled for texture pipeline")
+            except Exception as e:
+                print(f"[mmgp] Failed to enable MMGP off-loading: {e}")
+            
             # Not help much, ignore for now.
             # if args.compile:
             #     texgen_worker.models['delight_model'].pipeline.unet.compile()

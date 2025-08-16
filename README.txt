@@ -11,4 +11,7 @@ the original Hunyuan3D-2.1.
 THANKS TO:
 ----------
 
-- All authors of https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1
+- All authors of Hunyuan3D-2.1
+  https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1
+- VRAM optimization by deepbeepmeep
+  https://github.com/deepbeepmeep/mmgp
