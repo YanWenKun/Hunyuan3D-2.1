@@ -15,6 +15,7 @@ THANKS TO:
   https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1
 - VRAM optimization by deepbeepmeep
   https://github.com/deepbeepmeep/mmgp
+  Note that mmgp is only used in demo.py, not used by Gradio App.
 - Pull Requests on Hunyuan3D-2.1
   https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1/pulls
   Actually none of them runs without error on Windows, but
