@@ -15,3 +15,7 @@ THANKS TO:
   https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1
 - VRAM optimization by deepbeepmeep
   https://github.com/deepbeepmeep/mmgp
+- Pull Requests on Hunyuan3D-2.1
+  https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1/pulls
+  Actually none of them runs without error on Windows, but
+  combining them and adding a little piece of code did the magic.
