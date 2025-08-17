@@ -540,7 +540,7 @@ Fast for very complex cases, Standard seldom use.',
                     with gr.Tab('Advanced Options', id='tab_advanced_options'):
                         with gr.Row():
                             check_box_rembg = gr.Checkbox(
-                                value=True, 
+                                value=False, 
                                 label='Remove Background', 
                                 min_width=100)
                             randomize_seed = gr.Checkbox(
