@@ -85,6 +85,23 @@ else:
             def __call__(self, func):
                 return func 
 
+def replace_property_getter(instance, property_name, new_getter):
+    # Get the original class and property
+    original_class = type(instance)
+    original_property = getattr(original_class, property_name)
+
+    # Create a custom subclass for this instance
+    custom_class = type(f'Custom{original_class.__name__}', (original_class,), {})
+
+    # Create a new property with the new getter but same setter
+    new_property = property(new_getter, original_property.fset)
+    setattr(custom_class, property_name, new_property)
+
+    # Change the instance's class
+    instance.__class__ = custom_class
+
+    return instance
+
 def get_example_img_list():
     """
     Load and return a sorted list of example image file paths.
@@ -744,6 +761,7 @@ if __name__ == '__main__':
     parser.add_argument('--mc_algo', type=str, default='mc')
     parser.add_argument('--cache-path', type=str, default='./save_dir')
     parser.add_argument('--enable_t23d', action='store_true')
+    parser.add_argument('--profile', type=str, default="4")
     parser.add_argument('--disable_tex', action='store_true')
     parser.add_argument('--enable_flashvdm', action='store_true')
     parser.add_argument('--compile', action='store_true')
@@ -805,16 +823,7 @@ if __name__ == '__main__':
             conf.multiview_cfg_path = "hy3dpaint/cfgs/hunyuan-paint-pbr.yaml"
             conf.custom_pipeline = "hy3dpaint/hunyuanpaintpbr/pipeline.py"
             tex_pipeline = Hunyuan3DPaintPipeline(conf)
-        
-            # Apply MMGP off-loading & 8-bit quantisation to the heavy
-            # multiview diffusion pipeline inside the texture generator.
-            try:
-                core_pipe = tex_pipeline.models["multiview_model"].pipeline
-                offload.profile(core_pipe, profile_type.LowRAM_LowVRAM)
-                print("[mmgp] LowRAM_LowVRAM profile enabled for texture pipeline")
-            except Exception as e:
-                print(f"[mmgp] Failed to enable MMGP off-loading: {e}")
-            
+
             # Not help much, ignore for now.
             # if args.compile:
             #     texgen_worker.models['delight_model'].pipeline.unet.compile()
@@ -832,7 +841,7 @@ if __name__ == '__main__':
             print('Please try to install requirements by following README.md')
             HAS_TEXTUREGEN = False
 
-    HAS_T2I = True
+    HAS_T2I = False
     if args.enable_t23d:
         from hy3dgen.text2image import HunyuanDiTPipeline
 
@@ -860,6 +869,23 @@ if __name__ == '__main__':
     floater_remove_worker = FloaterRemover()
     degenerate_face_remove_worker = DegenerateFaceRemover()
     face_reduce_worker = FaceReducer()
+
+    # Apply MMGP off-loading & 8-bit quantisation
+    profile = int(args.profile)
+    kwargs = {}
+    replace_property_getter(i23d_worker, "_execution_device", lambda self : "cuda")
+    pipe = offload.extract_models("i23d_worker", i23d_worker)
+    if HAS_TEXTUREGEN:
+        pipe.update(offload.extract_models( "tex_pipeline", tex_pipeline))
+        tex_pipeline.models["multiview_model"].pipeline.vae.use_slicing = True
+    if HAS_T2I:
+        pipe.update(offload.extract_models( "t2i_worker", t2i_worker))
+    if profile < 5:
+        kwargs["pinnedMemory"] = "i23d_worker/model"
+    if profile !=1 and profile !=3:
+        kwargs["budgets"] = { "*" : 2200 }
+    offload.default_verboseLevel = verboseLevel = 1
+    offload.profile(pipe, profile_no = profile, verboseLevel = 1, **kwargs)
 
     # https://discuss.huggingface.co/t/how-to-serve-an-html-file/33921/2
     # create a FastAPI app
