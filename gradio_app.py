@@ -545,7 +545,7 @@ Fast for very complex cases, Standard seldom use.',
                                 min_width=100)
                             randomize_seed = gr.Checkbox(
                                 label="Randomize seed", 
-                                value=True, 
+                                value=False, 
                                 min_width=100)
                         seed = gr.Slider(
                             label="Seed",
