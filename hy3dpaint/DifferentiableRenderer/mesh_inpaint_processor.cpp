@@ -247,8 +247,8 @@ pair<py::array_t<float>, py::array_t<uint8_t>> createOutputArrays(
     }
 
     // Reshape the new arrays to match the original texture and mask shapes
-    new_texture.resize(std::vector<ssize_t>{data.texture_height, data.texture_width, 3});
-    new_mask.resize(std::vector<ssize_t>{data.texture_height, data.texture_width});
+    new_texture.resize(std::vector<py::ssize_t>{data.texture_height, data.texture_width, 3});
+    new_mask.resize(std::vector<py::ssize_t>{data.texture_height, data.texture_width});
 
     return make_pair(new_texture, new_mask);
 }
